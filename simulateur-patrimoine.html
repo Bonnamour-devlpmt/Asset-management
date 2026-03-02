@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulation patrimoniale — Arbitrage des Enveloppes Fiscales</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --navy: #0D1B2A;
+    --navy-mid: #1B2E45;
+    --navy-light: #253D57;
+    --gold: #C9A84C;
+    --gold-light: #E8C97A;
+    --cream: #F7F4EE;
+    --cream-mid: #EDE9E0;
+    --text: #0D1B2A;
+    --text-muted: #5A6A7A;
+    --white: #FFFFFF;
+    --pea: #2E7D32;
+    --av: #1565C0;
+    --per: #6A1B9A;
+    --cto: #BF360C;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--navy);
+    padding: 0 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 72px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 24px rgba(0,0,0,0.3);
+  }
+  .logo {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .logo-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--white);
+    letter-spacing: 1px;
+  }
+  .logo-dot { color: var(--gold); font-size: 28px; }
+  .logo-sub {
+    font-size: 11px;
+    font-weight: 300;
+    color: rgba(255,255,255,0.45);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+  .header-badge {
+    font-size: 11px;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border: 1px solid rgba(255,255,255,0.15);
+    padding: 6px 14px;
+    border-radius: 2px;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    background: var(--navy);
+    padding: 64px 48px 72px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(201,168,76,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+  .hero-label {
+    font-size: 11px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(32px, 4vw, 52px);
+    font-weight: 300;
+    color: var(--white);
+    line-height: 1.15;
+    max-width: 640px;
+    margin-bottom: 16px;
+  }
+  .hero h1 em {
+    font-style: normal;
+    color: var(--gold-light);
+  }
+  .hero-desc {
+    font-size: 15px;
+    color: rgba(255,255,255,0.5);
+    max-width: 520px;
+    line-height: 1.7;
+    font-weight: 300;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 56px 48px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 40px;
+    align-items: start;
+  }
+
+  /* ── PANEL INPUTS ── */
+  .panel {
+    background: var(--white);
+    border: 1px solid rgba(13,27,42,0.08);
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 4px 32px rgba(13,27,42,0.06);
+  }
+  .panel-header {
+    background: var(--navy);
+    padding: 20px 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .panel-header-icon {
+    width: 32px; height: 32px;
+    background: rgba(201,168,76,0.15);
+    border: 1px solid rgba(201,168,76,0.3);
+    border-radius: 2px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+  .panel-header h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--white);
+    letter-spacing: 0.5px;
+  }
+  .panel-body { padding: 28px; display: flex; flex-direction: column; gap: 24px; }
+
+  .field { display: flex; flex-direction: column; gap: 8px; }
+  .field label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .field-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--navy);
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 3px;
+    background: var(--cream-mid);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--navy);
+    border: 3px solid var(--gold);
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+  input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+  .select-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .select-btn {
+    padding: 10px 8px;
+    border: 1px solid var(--cream-mid);
+    border-radius: 3px;
+    background: var(--cream);
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text-muted);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    font-weight: 400;
+  }
+  .select-btn:hover { border-color: var(--navy); color: var(--navy); }
+  .select-btn.active {
+    background: var(--navy);
+    border-color: var(--navy);
+    color: var(--white);
+  }
+
+  .profile-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .profile-btn {
+    padding: 12px 8px;
+    border: 1px solid var(--cream-mid);
+    border-radius: 3px;
+    background: var(--cream);
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .profile-btn:hover { border-color: var(--navy); }
+  .profile-btn.active { background: var(--navy); border-color: var(--navy); }
+  .profile-btn .profile-icon { font-size: 18px; }
+  .profile-btn .profile-name { font-size: 12px; font-weight: 500; color: var(--text-muted); }
+  .profile-btn .profile-rate { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; color: var(--navy); }
+  .profile-btn.active .profile-name,
+  .profile-btn.active .profile-rate { color: var(--white); }
+  .profile-btn .profile-desc { font-size: 10px; color: var(--text-muted); line-height: 1.3; }
+  .profile-btn.active .profile-desc { color: rgba(255,255,255,0.5); }
+  .tmi-btn {
+    padding: 9px 4px;
+    border: 1px solid var(--cream-mid);
+    border-radius: 3px;
+    background: var(--cream);
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text-muted);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+  }
+  .tmi-btn:hover { border-color: var(--navy); color: var(--navy); }
+  .tmi-btn.active { background: var(--navy); border-color: var(--navy); color: var(--white); }
+
+  .divider {
+    height: 1px;
+    background: var(--cream-mid);
+    margin: 0 -28px;
+  }
+
+  .cta-btn {
+    width: 100%;
+    padding: 16px;
+    background: var(--navy);
+    color: var(--white);
+    border: none;
+    border-radius: 3px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .cta-btn::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--gold);
+    transform: scaleX(0);
+    transition: transform 0.2s;
+  }
+  .cta-btn:hover { background: var(--navy-mid); }
+  .cta-btn:hover::after { transform: scaleX(1); }
+
+  /* ── RESULTS ── */
+  .results { display: flex; flex-direction: column; gap: 28px; }
+
+  .results-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
+    font-weight: 400;
+    color: var(--navy);
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--cream-mid);
+  }
+
+  /* Cards KPI */
+  .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .kpi-card {
+    background: var(--white);
+    border: 1px solid rgba(13,27,42,0.08);
+    border-radius: 4px;
+    padding: 22px 24px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 2px 16px rgba(13,27,42,0.04);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(13,27,42,0.08); }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+  }
+  .kpi-card.pea::before { background: var(--pea); }
+  .kpi-card.av::before { background: var(--av); }
+  .kpi-card.per::before { background: var(--per); }
+  .kpi-card.cto::before { background: var(--cto); }
+
+  .kpi-envelope {
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+  .kpi-card.pea .kpi-envelope { color: var(--pea); }
+  .kpi-card.av .kpi-envelope { color: var(--av); }
+  .kpi-card.per .kpi-envelope { color: var(--per); }
+  .kpi-card.cto .kpi-envelope { color: var(--cto); }
+
+  .kpi-amount {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--navy);
+    margin-bottom: 4px;
+  }
+  .kpi-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+  .kpi-details { display: flex; flex-direction: column; gap: 4px; }
+  .kpi-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-muted);
+    padding: 3px 0;
+    border-bottom: 1px dashed var(--cream-mid);
+  }
+  .kpi-row:last-child { border-bottom: none; }
+  .kpi-row span:last-child { font-weight: 500; color: var(--text); }
+
+  .best-badge {
+    display: inline-block;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    background: var(--gold);
+    color: var(--navy);
+    padding: 3px 8px;
+    border-radius: 2px;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+
+  /* Chart */
+  .chart-card {
+    background: var(--white);
+    border: 1px solid rgba(13,27,42,0.08);
+    border-radius: 4px;
+    padding: 28px;
+    box-shadow: 0 2px 16px rgba(13,27,42,0.04);
+  }
+  .chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 24px;
+  }
+  .chart-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--navy);
+  }
+  .chart-legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .chart-container { position: relative; height: 280px; }
+
+  /* Fiscal table */
+  .fiscal-card {
+    background: var(--white);
+    border: 1px solid rgba(13,27,42,0.08);
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 2px 16px rgba(13,27,42,0.04);
+  }
+  .fiscal-header {
+    background: var(--navy);
+    padding: 16px 28px;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--white);
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: var(--cream); }
+  th {
+    padding: 12px 20px;
+    text-align: left;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 500;
+    border-bottom: 1px solid var(--cream-mid);
+  }
+  td {
+    padding: 14px 20px;
+    font-size: 13px;
+    color: var(--text);
+    border-bottom: 1px solid var(--cream-mid);
+  }
+  tr:last-child td { border-bottom: none; }
+  .td-envelope { font-weight: 500; }
+  .td-rate { font-size: 12px; color: var(--text-muted); }
+  .td-amount { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 500; }
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 2px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    font-weight: 500;
+  }
+  .tag-green { background: rgba(46,125,50,0.1); color: var(--pea); }
+  .tag-blue { background: rgba(21,101,192,0.1); color: var(--av); }
+  .tag-purple { background: rgba(106,27,154,0.1); color: var(--per); }
+  .tag-red { background: rgba(191,54,12,0.1); color: var(--cto); }
+
+  /* Recommendation */
+  .reco-card {
+    background: var(--navy);
+    border-radius: 4px;
+    padding: 28px 32px;
+    position: relative;
+    overflow: hidden;
+  }
+  .reco-card::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(201,168,76,0.12) 0%, transparent 70%);
+  }
+  .reco-label {
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 12px;
+  }
+  .reco-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 400;
+    color: var(--white);
+    margin-bottom: 12px;
+    line-height: 1.4;
+  }
+  .reco-body {
+    font-size: 13px;
+    color: rgba(255,255,255,0.6);
+    line-height: 1.7;
+    font-weight: 300;
+  }
+  .reco-body strong { color: rgba(255,255,255,0.9); font-weight: 500; }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 80px 40px;
+    background: var(--white);
+    border: 1px solid rgba(13,27,42,0.08);
+    border-radius: 4px;
+  }
+  .empty-icon {
+    font-size: 48px;
+    margin-bottom: 20px;
+    opacity: 0.3;
+  }
+  .empty-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 24px;
+    color: var(--navy);
+    margin-bottom: 8px;
+  }
+  .empty-sub { font-size: 13px; color: var(--text-muted); }
+
+  .results-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--cream-mid);
+    margin-bottom: 0;
+  }
+
+  /* ── LEXIQUE ── */
+  .lexique {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 48px 48px 64px;
+  }
+  .lexique-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--cream-mid);
+  }
+  .lexique-header-left { display: flex; align-items: center; gap: 14px; }
+  .lexique-icon { font-size: 24px; }
+  .lexique-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 26px;
+    font-weight: 500;
+    color: var(--navy);
+  }
+  .lexique-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .lexique-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .lexique-card {
+    background: var(--white);
+    border: 1px solid rgba(13,27,42,0.08);
+    border-radius: 4px;
+    padding: 20px;
+    position: relative;
+    box-shadow: 0 2px 12px rgba(13,27,42,0.04);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .lexique-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(13,27,42,0.08); }
+  .lexique-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: 4px 4px 0 0;
+  }
+  .lexique-card.pea::before { background: var(--pea); }
+  .lexique-card.av::before { background: var(--av); }
+  .lexique-card.per::before { background: var(--per); }
+  .lexique-card.cto::before { background: var(--cto); }
+
+  .lexique-tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    padding: 3px 10px;
+    border-radius: 2px;
+    margin-bottom: 10px;
+  }
+  .pea-tag { background: rgba(46,125,50,0.1); color: var(--pea); }
+  .av-tag { background: rgba(21,101,192,0.1); color: var(--av); }
+  .per-tag { background: rgba(106,27,154,0.1); color: var(--per); }
+  .cto-tag { background: rgba(191,54,12,0.1); color: var(--cto); }
+
+  .lexique-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--navy);
+    margin-bottom: 10px;
+    line-height: 1.3;
+  }
+  .lexique-def {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.7;
+    margin-bottom: 14px;
+  }
+  .lexique-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    font-size: 10px;
+    padding: 3px 8px;
+    background: var(--cream);
+    border: 1px solid var(--cream-mid);
+    border-radius: 2px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .lexique-footer {
+    background: var(--navy);
+    border-radius: 4px;
+    padding: 20px 28px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  .lexique-footer-item { display: flex; flex-direction: column; gap: 6px; }
+  .lexique-footer-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gold);
+    letter-spacing: 1px;
+  }
+  .lexique-footer-def {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    line-height: 1.6;
+  }
+
+  @media (max-width: 900px) {
+    .main { grid-template-columns: 1fr; padding: 32px 24px; }
+    .panel { position: static; }
+    .kpi-grid { grid-template-columns: 1fr 1fr; }
+    header { padding: 0 24px; }
+    .hero { padding: 40px 24px 48px; }
+  }
+
+  /* Disclaimer */
+  .disclaimer {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 24px 0 8px;
+    line-height: 1.6;
+    border-top: 1px solid var(--cream-mid);
+  }
+
+  /* Animations */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate { animation: fadeIn 0.4s ease forwards; }
+  .animate-delay-1 { animation-delay: 0.05s; opacity: 0; }
+  .animate-delay-2 { animation-delay: 0.1s; opacity: 0; }
+  .animate-delay-3 { animation-delay: 0.15s; opacity: 0; }
+  .animate-delay-4 { animation-delay: 0.2s; opacity: 0; }
+
+  /* ── NAV ── */
+  .nav-btn {
+    padding: 8px 20px;
+    border-radius: 3px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: transparent;
+    color: rgba(255,255,255,0.5);
+  }
+  .nav-btn:hover { border-color: rgba(255,255,255,0.4); color: rgba(255,255,255,0.9); }
+  .nav-btn.active { background: var(--gold); border-color: var(--gold); color: var(--navy); font-weight: 600; }
+
+  /* ── PAGES ── */
+  .page { display: none; }
+  .page.active { display: block; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="logo-name">Simulation patrimoniale</span>
+    <span class="logo-sub">Arbitrage fiscal</span>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <button class="nav-btn active" id="btn-simulateur" onclick="showPage('simulateur')">⚖ Simulateur</button>
+    <button class="nav-btn" id="btn-lexique" onclick="showPage('lexique')">📖 Lexique</button>
+  </div>
+</header>
+<div style="background:var(--navy-mid);text-align:center;padding:8px;font-size:11px;color:rgba(255,255,255,0.4);letter-spacing:2px;font-family:'DM Sans',sans-serif;">
+  Conçu par Samuel Bonnamour
+</div>
+
+<div class="page active" id="page-simulateur">
+
+<section class="hero">
+  <p class="hero-label">Outil de simulation patrimoniale</p>
+  <h1>Quelle enveloppe fiscale <em>optimise</em> votre capital ?</h1>
+  <p class="hero-desc">Comparez PEA, Assurance-Vie, PER et CTO selon votre situation personnelle. Visualisez l'impact fiscal à la sortie et identifiez la stratégie adaptée à vos objectifs.</p>
+</section>
+
+<main class="main">
+  <!-- PANEL INPUTS -->
+  <aside class="panel">
+    <div class="panel-header">
+      <div class="panel-header-icon">⚙</div>
+      <h2>Votre situation</h2>
+    </div>
+    <div class="panel-body">
+
+      <div class="field">
+        <label>Montant à investir</label>
+        <div class="field-value" id="val-montant">10 000 €</div>
+        <input type="range" id="montant" min="1000" max="150000" step="1000" value="10000" oninput="updateDisplay()">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:2px;">
+          <span>1 000 €</span><span>150 000 €</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Horizon de placement</label>
+        <div class="field-value" id="val-horizon">10 ans</div>
+        <input type="range" id="horizon" min="1" max="30" step="1" value="10" oninput="updateDisplay()">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:2px;">
+          <span>1 an</span><span>30 ans</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Versement mensuel programmé</label>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="field-value" id="val-versement">0 €</div>
+          <span style="font-size:11px;color:var(--text-muted);letter-spacing:1px;">/mois</span>
+        </div>
+        <input type="range" id="versement" min="0" max="2000" step="50" value="0" oninput="updateDisplay()">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:2px;">
+          <span>0 €</span><span>2 000 €</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Profil d'investisseur</label>
+        <div class="profile-grid" id="profile-grid">
+          <button class="profile-btn" onclick="setProfil(2.5, this)">
+            <span class="profile-icon">🛡</span>
+            <span class="profile-name">Prudent</span>
+            <span class="profile-rate">2,5 %</span>
+            <span class="profile-desc">Fonds euros, obligations</span>
+          </button>
+          <button class="profile-btn active" onclick="setProfil(5.0, this)">
+            <span class="profile-icon">⚖</span>
+            <span class="profile-name">Équilibré</span>
+            <span class="profile-rate">5,0 %</span>
+            <span class="profile-desc">Mix UC / fonds euros</span>
+          </button>
+          <button class="profile-btn" onclick="setProfil(7.5, this)">
+            <span class="profile-icon">📈</span>
+            <span class="profile-name">Dynamique</span>
+            <span class="profile-rate">7,5 %</span>
+            <span class="profile-desc">Actions, ETF</span>
+          </button>
+          <button class="profile-btn" onclick="setProfil(10.0, this)">
+            <span class="profile-icon">🚀</span>
+            <span class="profile-name">Offensif</span>
+            <span class="profile-rate">10,0 %</span>
+            <span class="profile-desc">Actions, small caps</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="field">
+        <label>Tranche marginale d'imposition (TMI)</label>
+        <div class="tmi-grid" id="tmi-grid">
+          <button class="tmi-btn" onclick="setTMI(0)">0 %</button>
+          <button class="tmi-btn" onclick="setTMI(11)">11 %</button>
+          <button class="tmi-btn active" onclick="setTMI(30)">30 %</button>
+          <button class="tmi-btn" onclick="setTMI(41)">41 %</button>
+          <button class="tmi-btn" onclick="setTMI(45)">45 %</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Objectif principal</label>
+        <div class="select-grid" id="obj-grid">
+          <button class="select-btn active" onclick="setObj('retraite')">🏖 Retraite</button>
+          <button class="select-btn" onclick="setObj('transmission')">🏛 Transmission</button>
+          <button class="select-btn" onclick="setObj('liquidite')">💧 Liquidité</button>
+          <button class="select-btn" onclick="setObj('rendement')">📈 Rendement</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <button class="cta-btn" onclick="simulate()">Lancer la simulation</button>
+    </div>
+  </aside>
+
+  <!-- RESULTS -->
+  <section class="results" id="results">
+    <div class="empty-state" id="empty">
+      <div class="empty-icon">⚖</div>
+      <div class="empty-title">Configurez votre simulation</div>
+      <div class="empty-sub">Renseignez vos paramètres et lancez l'analyse pour comparer les enveloppes fiscales.</div>
+    </div>
+  </section>
+
+</main>
+</div><!-- end page-simulateur -->
+
+<!-- PAGE LEXIQUE -->
+<div class="page" id="page-lexique">
+  <section class="lexique">
+    <div class="lexique-header">
+      <div class="lexique-header-left">
+        <span class="lexique-icon">📖</span>
+        <div>
+          <div class="lexique-title">Lexique des enveloppes fiscales</div>
+          <div class="lexique-sub">Comprendre les produits avant de simuler</div>
+        </div>
+      </div>
+    </div>
+    <div class="lexique-grid">
+
+      <div class="lexique-card pea">
+        <div class="lexique-tag pea-tag">PEA</div>
+        <div class="lexique-name">Plan d'Épargne en Actions</div>
+        <div class="lexique-def">Enveloppe dédiée aux actions européennes, plafonnée à 150 000 €. Après 5 ans, les plus-values sont exonérées d'impôt sur le revenu (seuls les prélèvements sociaux de 17,2 % s'appliquent). Tout retrait avant 5 ans entraîne la clôture du plan. Idéal pour un investissement long terme en bourse.</div>
+        <div class="lexique-chips">
+          <span class="chip">Plafond : 150 000 €</span>
+          <span class="chip">Exonération IR après 5 ans</span>
+          <span class="chip">PS : 17,2 %</span>
+        </div>
+      </div>
+
+      <div class="lexique-card av">
+        <div class="lexique-tag av-tag">AV</div>
+        <div class="lexique-name">Assurance-Vie</div>
+        <div class="lexique-def">Contrat d'épargne polyvalent sans plafond de versement. Après 8 ans, un abattement annuel de 4 600 € (9 200 € pour un couple) s'applique sur les gains, avec un taux réduit à 7,5 % + PS. Outil privilégié pour la transmission : jusqu'à 152 500 € par bénéficiaire hors succession pour les versements avant 70 ans.</div>
+        <div class="lexique-chips">
+          <span class="chip">Sans plafond</span>
+          <span class="chip">Abattement après 8 ans</span>
+          <span class="chip">Transmission optimisée</span>
+        </div>
+      </div>
+
+      <div class="lexique-card per">
+        <div class="lexique-tag per-tag">PER</div>
+        <div class="lexique-name">Plan d'Épargne Retraite</div>
+        <div class="lexique-def">Produit d'épargne retraite créé par la loi PACTE (2019). Les versements sont déductibles du revenu imposable dans la limite des plafonds légaux, générant un avantage fiscal à l'entrée proportionnel à la TMI. Les fonds sont bloqués jusqu'à la retraite sauf cas exceptionnels. La sortie peut se faire en capital, en rente, ou les deux.</div>
+        <div class="lexique-chips">
+          <span class="chip">Déduction fiscale à l'entrée</span>
+          <span class="chip">Déblocage à la retraite</span>
+          <span class="chip">Sortie capital ou rente</span>
+        </div>
+      </div>
+
+      <div class="lexique-card cto">
+        <div class="lexique-tag cto-tag">CTO</div>
+        <div class="lexique-name">Compte-Titres Ordinaire</div>
+        <div class="lexique-def">Enveloppe d'investissement sans plafond ni contrainte de durée, donnant accès à toutes les classes d'actifs (actions, obligations, ETF, produits dérivés, titres étrangers). Les plus-values sont soumises au Prélèvement Forfaitaire Unique (PFU) de 30 %. Sa principale force est sa liquidité totale et sa flexibilité.</div>
+        <div class="lexique-chips">
+          <span class="chip">Sans plafond</span>
+          <span class="chip">PFU 30 % sur les gains</span>
+          <span class="chip">Liquidité totale</span>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="lexique-footer">
+      <div class="lexique-footer-item">
+        <span class="lexique-footer-label">TMI</span>
+        <span class="lexique-footer-def">Tranche Marginale d'Imposition — taux d'imposition appliqué à la dernière tranche de vos revenus. Plus elle est élevée, plus les enveloppes à déduction fiscale (PER) sont avantageuses.</span>
+      </div>
+      <div class="lexique-footer-item">
+        <span class="lexique-footer-label">Prélèvements sociaux (PS)</span>
+        <span class="lexique-footer-def">Cotisations de 17,2 % prélevées sur les revenus du capital (CSG, CRDS, prélèvement de solidarité). Ils s'appliquent à toutes les enveloppes, même les plus avantageuses fiscalement.</span>
+      </div>
+      <div class="lexique-footer-item">
+        <span class="lexique-footer-label">PFU (Flat Tax)</span>
+        <span class="lexique-footer-def">Prélèvement Forfaitaire Unique de 30 % (12,8 % IR + 17,2 % PS) instauré en 2018. S'applique par défaut aux revenus du capital sur le CTO et aux retraits anticipés sur certaines enveloppes.</span>
+      </div>
+    </div>
+  </section>
+</div><!-- end page-lexique -->
+
+<script>
+let currentTMI = 30;
+let currentObj = 'retraite';
+let currentRendement = 5.0;
+let chartInstance = null;
+
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.getElementById('btn-' + page).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function setProfil(taux, btn) {
+  currentRendement = taux;
+  document.querySelectorAll('.profile-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function fmt(n) {
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
+}
+function fmtPct(n) { return (n * 100).toFixed(1) + ' %'; }
+
+function setTMI(v) {
+  currentTMI = v;
+  document.querySelectorAll('.tmi-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+function setObj(v) {
+  currentObj = v;
+  document.querySelectorAll('.select-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+function updateDisplay() {
+  const m = parseInt(document.getElementById('montant').value);
+  const h = parseInt(document.getElementById('horizon').value);
+  const v = parseInt(document.getElementById('versement').value);
+  document.getElementById('val-montant').textContent = fmt(m);
+  document.getElementById('val-horizon').textContent = h + ' an' + (h > 1 ? 's' : '');
+  document.getElementById('val-versement').textContent = fmt(v);
+}
+
+function computeCapital(montant, taux, duree) {
+  return montant * Math.pow(1 + taux / 100, duree);
+}
+
+// Capital avec versements mensuels : formule de rente + capital initial
+function computeCapitalAvecVersements(montant, versementMensuel, tauxAnnuel, dureeAns) {
+  const tauxMensuel = tauxAnnuel / 100 / 12;
+  const n = dureeAns * 12;
+  const capitalInitial = montant * Math.pow(1 + tauxAnnuel / 100, dureeAns);
+  const capitalVersements = versementMensuel > 0 && tauxMensuel > 0
+    ? versementMensuel * (Math.pow(1 + tauxMensuel, n) - 1) / tauxMensuel
+    : versementMensuel * n;
+  return capitalInitial + capitalVersements;
+}
+
+function totalVerse(montant, versementMensuel, dureeAns) {
+  return montant + versementMensuel * 12 * dureeAns;
+}
+
+function simulate() {
+  const montant = parseInt(document.getElementById('montant').value);
+  const horizon = parseInt(document.getElementById('horizon').value);
+  const versement = parseInt(document.getElementById('versement').value);
+  const rend = currentRendement;
+  const tmi = currentTMI;
+  const obj = currentObj;
+
+  const capitalBrut = computeCapitalAvecVersements(montant, versement, rend, horizon);
+  const totalInvesti = totalVerse(montant, versement, horizon);
+  const plusValue = capitalBrut - totalInvesti;
+
+  // ── PEA (exonéré IR après 5 ans, PS 17,2%) ──
+  const peaEligible = horizon >= 5;
+  const peaImpot = peaEligible ? plusValue * 0.172 : plusValue * (0.128 + tmi / 100);
+  const peaNet = capitalBrut - peaImpot;
+  const peaTaux = peaImpot / plusValue;
+
+  // ── Assurance-Vie (abattement 4600€/9200€ après 8 ans, PFU 7,5%+PS ou IR+PS) ──
+  const avEligible = horizon >= 8;
+  const abattement = obj === 'transmission' ? 9200 : 4600;
+  let avImpot;
+  if (avEligible) {
+    const pvImposable = Math.max(0, plusValue - abattement);
+    const tauxIR = Math.min(tmi / 100, 0.075);
+    avImpot = pvImposable * (tauxIR + 0.172);
+  } else {
+    avImpot = plusValue * (0.128 + 0.172);
+  }
+  const avNet = capitalBrut - avImpot;
+  const avTaux = avImpot / Math.max(1, plusValue);
+
+  // ── PER (déduction à l'entrée, IR+PS à la sortie) ──
+  const economieImpot = totalInvesti * (tmi / 100);
+  const capitalPer = computeCapitalAvecVersements(montant + montant * (tmi/100), versement * (1 + tmi/100), rend, horizon);
+  const pvPer = capitalPer - totalInvesti;
+  const perImpot = capitalPer * (tmi / 100) + pvPer * 0.172;
+  const perNet = capitalPer - perImpot;
+  const perNetAdj = perNet;
+  const perTaux = perImpot / Math.max(1, capitalPer - totalInvesti);
+
+  // ── CTO (PFU 30%) ──
+  const ctoImpot = plusValue * 0.30;
+  const ctoNet = capitalBrut - ctoImpot;
+  const ctoTaux = 0.30;
+
+  const enveloppes = [
+    { id: 'pea', nom: 'PEA', capital: capitalBrut, impot: peaImpot, net: peaNet, tauxEffectif: peaTaux,
+      tag: peaEligible ? 'Exonération IR' : 'PFU applicable', tagClass: peaEligible ? 'tag-green' : 'tag-red',
+      color: '#2E7D32', note: peaEligible ? 'Exonéré d\'IR après 5 ans (PS 17,2%)' : 'Horizon < 5 ans : PFU 30%' },
+    { id: 'av', nom: 'Assurance-Vie', capital: capitalBrut, impot: avImpot, net: avNet, tauxEffectif: avTaux,
+      tag: avEligible ? 'Abattement actif' : 'Avant 8 ans', tagClass: avEligible ? 'tag-blue' : 'tag-red',
+      color: '#1565C0', note: avEligible ? `Abattement ${fmt(abattement)} + PFU 7,5% + PS` : 'PFU 12,8% + PS 17,2%' },
+    { id: 'per', nom: 'PER', capital: capitalPer, impot: perImpot, net: perNetAdj, tauxEffectif: perTaux,
+      tag: tmi >= 30 ? 'Déduction avantageuse' : 'Gain fiscal limité', tagClass: tmi >= 30 ? 'tag-purple' : 'tag-red',
+      color: '#6A1B9A', note: `Économie entrée: ${fmt(economieImpot)} · Sortie rente/capital` },
+    { id: 'cto', nom: 'CTO', capital: capitalBrut, impot: ctoImpot, net: ctoNet, tauxEffectif: ctoTaux,
+      tag: 'PFU 30%', tagClass: 'tag-red', color: '#BF360C', note: 'Flat tax 30% sur plus-values. Liquidité totale.' }
+  ];
+
+  // Trier par net décroissant
+  enveloppes.sort((a, b) => b.net - a.net);
+  const best = enveloppes[0];
+
+  // Recommandation contextuelle
+  const recoTexts = {
+    retraite: {
+      PEA: `Avec un horizon retraite de <strong>${horizon} ans</strong>, le PEA est particulièrement adapté : exonéré d'IR après 5 ans, il vous permet de capitaliser efficacement sur le long terme. Idéal pour un portefeuille actions diversifié.`,
+      'PER': `Le PER est la solution de référence pour la retraite. Votre TMI de <strong>${tmi}%</strong> vous permet de déduire les versements de votre revenu imposable, créant un levier fiscal significatif à l'entrée.`,
+      'Assurance-Vie': `L'Assurance-Vie offre une fiscalité douce après 8 ans avec l'abattement annuel. Particulièrement adaptée si vous souhaitez conserver une option de liquidité partielle avant la retraite.`,
+      'CTO': `Le CTO reste moins optimisé fiscalement sur le long terme. Il est adapté si vous avez épuisé vos plafonds PEA ou si vous souhaitez accéder à des classes d'actifs non éligibles aux autres enveloppes.`
+    },
+    transmission: {
+      'Assurance-Vie': `L'Assurance-Vie est l'outil de transmission par excellence. Elle permet de transmettre jusqu'à <strong>152 500 € par bénéficiaire</strong> hors succession (article 990 I CGI) pour les versements avant 70 ans.`,
+      PEA: `Dans une optique de transmission, le PEA est moins optimisé que l'Assurance-Vie : il est clôturé au décès et réintégré dans la succession. Il reste pertinent pour la performance à long terme.`,
+      'PER': `Le PER peut être transmis aux bénéficiaires désignés en cas de décès, avec une fiscalité favorable avant 70 ans (20% après abattement de 152 500 €). Une bonne complémentarité avec l'Assurance-Vie.`,
+      'CTO': `Le CTO intègre la succession et est donc moins avantageux pour la transmission que l'Assurance-Vie. Il bénéficie toutefois d'une purge des plus-values au décès.`
+    },
+    liquidite: {
+      'CTO': `Pour un objectif de liquidité, le CTO est l'enveloppe la plus flexible : aucun plafond, aucune contrainte de durée, retraits à tout moment. Le PFU à 30% est le prix de cette liberté totale.`,
+      'Assurance-Vie': `L'Assurance-Vie permet des rachats partiels à tout moment, avec une fiscalité allégée après 8 ans. Un bon compromis entre liquidité et optimisation fiscale.`,
+      PEA: `Le PEA offre une certaine liquidité mais tout retrait avant 5 ans entraîne la clôture du plan. Après 5 ans, les retraits sont possibles sans clôture depuis 2019.`,
+      'PER': `Le PER est peu adapté à un objectif de liquidité : les fonds sont bloqués jusqu'à la retraite sauf cas exceptionnels (invalidité, décès du conjoint, surendettement, achat résidence principale).`
+    },
+    rendement: {
+      PEA: `Pour maximiser le rendement net, le PEA s'impose sur le long terme : l'exonération d'IR vous permet de réinvestir intégralement les plus-values, créant un effet de capitalisation puissant.`,
+      'Assurance-Vie': `L'Assurance-Vie, selon le support choisi (UC vs fonds euros), peut offrir un bon rendement avec une fiscalité maîtrisée. Les unités de compte permettent d'accéder aux marchés actions.`,
+      'PER': `Le PER amplifie le capital investi grâce à la déduction fiscale à l'entrée. Avec une TMI de <strong>${tmi}%</strong>, vous investissez davantage, ce qui booste mécaniquement le rendement absolu.`,
+      'CTO': `Le CTO n'a pas de plafond et donne accès à toutes les classes d'actifs (actions, obligations, ETF, produits dérivés). Sa flexibilité compense en partie la fiscalité moins favorable.`
+    }
+  };
+
+  const recoText = (recoTexts[obj] && recoTexts[obj][best.nom]) || `L'enveloppe <strong>${best.nom}</strong> ressort comme la plus performante nette d'impôts dans votre situation.`;
+
+  // Données graphique
+  const years = Array.from({ length: horizon + 1 }, (_, i) => i);
+  const datasets = enveloppes.map(env => ({
+    label: env.nom,
+    data: years.map(y => {
+      const totalInv = totalVerse(montant, versement, y);
+      if (env.id === 'per') {
+        const cap = computeCapitalAvecVersements(montant + montant*(tmi/100), versement*(1+tmi/100), rend, y);
+        const pv = cap - totalInv;
+        const imp = cap * (tmi / 100) + pv * 0.172;
+        return Math.round(cap - imp);
+      }
+      const cap = computeCapitalAvecVersements(montant, versement, rend, y);
+      const pv = cap - totalInv;
+      let imp = 0;
+      if (env.id === 'pea') imp = y >= 5 ? Math.max(0,pv) * 0.172 : Math.max(0,pv) * (0.128 + tmi / 100);
+      else if (env.id === 'av') {
+        if (y >= 8) { const pvI = Math.max(0, pv - abattement); imp = pvI * (Math.min(tmi / 100, 0.075) + 0.172); }
+        else imp = Math.max(0,pv) * (0.128 + 0.172);
+      }
+      else if (env.id === 'cto') imp = Math.max(0,pv) * 0.30;
+      return Math.round(cap - imp);
+    }),
+    borderColor: env.color,
+    backgroundColor: env.color + '15',
+    borderWidth: 2,
+    tension: 0.4,
+    pointRadius: 0,
+    pointHoverRadius: 4,
+    fill: false
+  }));
+
+  // ── RENDER ──
+  const res = document.getElementById('results');
+  res.innerHTML = `
+    <div class="results-topbar animate">
+      <h2 class="results-title" style="border:none;padding:0;margin:0;">Résultats de simulation</h2>
+    </div>
+
+    <div class="kpi-grid animate animate-delay-1">
+      ${enveloppes.map((e, i) => `
+        <div class="kpi-card ${e.id}">
+          ${i === 0 ? '<div class="best-badge">✦ Optimal</div>' : ''}
+          <div class="kpi-envelope">${e.nom}</div>
+          <div class="kpi-amount">${fmt(e.net)}</div>
+          <div class="kpi-label">Capital net d'impôts</div>
+          <div class="kpi-details">
+            <div class="kpi-row"><span>Total investi</span><span>${fmt(totalInvesti)}</span></div>
+            <div class="kpi-row"><span>Capital brut</span><span>${fmt(e.capital)}</span></div>
+            <div class="kpi-row"><span>Impôts & PS</span><span>−${fmt(e.impot)}</span></div>
+            <div class="kpi-row"><span>Taux effectif</span><span>${fmtPct(e.tauxEffectif)}</span></div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="chart-card animate animate-delay-2">
+      <div class="chart-header">
+        <span class="chart-title">Évolution du capital net</span>
+        <div class="chart-legend">
+          ${enveloppes.map(e => `<div class="legend-item"><div class="legend-dot" style="background:${e.color}"></div>${e.nom}</div>`).join('')}
+        </div>
+      </div>
+      <div class="chart-container">
+        <canvas id="myChart"></canvas>
+      </div>
+    </div>
+
+    <div class="fiscal-card animate animate-delay-3">
+      <div class="fiscal-header">Détail de la fiscalité à la sortie</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Enveloppe</th>
+            <th>Régime fiscal</th>
+            <th>Impôts estimés</th>
+            <th>Capital net</th>
+            <th>Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${enveloppes.map(e => `
+            <tr>
+              <td class="td-envelope">${e.nom}</td>
+              <td class="td-rate">${e.note}</td>
+              <td class="td-amount" style="color:var(--cto)">−${fmt(e.impot)}</td>
+              <td class="td-amount">${fmt(e.net)}</td>
+              <td><span class="tag ${e.tagClass}">${e.tag}</span></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="reco-card animate animate-delay-4">
+      <div class="reco-label">✦ Recommandation personnalisée</div>
+      <div class="reco-title">Pourquoi le ${best.nom} s'impose dans votre situation ?</div>
+      <div class="reco-body">${recoText}</div>
+    </div>
+
+    <p class="disclaimer">
+      Cette simulation est fournie à titre informatif et pédagogique. Elle ne constitue pas un conseil en investissement.<br>
+      Les hypothèses de rendement sont indicatives. La fiscalité est susceptible d'évoluer. Consultez un conseiller en gestion de patrimoine pour une analyse personnalisée.
+    </p>
+  `;
+
+  // Chart
+  if (chartInstance) chartInstance.destroy();
+  const ctx = document.getElementById('myChart').getContext('2d');
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: { labels: years.map(y => `An ${y}`), datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(13,27,42,0.95)',
+          titleColor: 'rgba(255,255,255,0.6)',
+          bodyColor: '#fff',
+          padding: 12,
+          callbacks: {
+            label: ctx => `  ${ctx.dataset.label}: ${fmt(ctx.parsed.y)}`
+          }
+        }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { color: '#8a9bb0', font: { size: 11 }, maxTicksLimit: 8 } },
+        y: {
+          grid: { color: 'rgba(0,0,0,0.04)' },
+          ticks: {
+            color: '#8a9bb0', font: { size: 11 },
+            callback: v => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0, notation: 'compact' }).format(v)
+          }
+        }
+      }
+    }
+  });
+}
+
+// Init
+updateDisplay();
+</script>
+</body>
+</html>
